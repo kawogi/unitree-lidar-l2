@@ -1,0 +1,18 @@
+[package]
+name = "l2-protocol"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bytes = { workspace = true, features = ["serde"] }
+crc-fast.workspace = true
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+pcap-parser.workspace = true
+etherparse.workspace = true
+
+[lints]
+workspace = true
