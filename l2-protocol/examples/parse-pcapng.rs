@@ -91,7 +91,7 @@ fn parse_incoming(mut data: &[u8], packet_index: u64) {
         let packet;
         let len = data.len();
         (packet, data) = Packet::parse(data).unwrap();
-        if !matches!(packet, Packet::LidarImuData(_)) {
+        if !matches!(packet, Packet::LidarImuData(_) | Packet::LidarPointData(_)) {
             println!(
                 "#{packet_index} LIDAR→USER {packet} payload {} bytes",
                 len - data.len() - 24

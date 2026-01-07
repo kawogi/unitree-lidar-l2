@@ -3,12 +3,12 @@ use std::fmt::{self, Display};
 use anyhow::{Result, bail};
 use bytes::Buf;
 
-
 /**
  * @brief Time stamp
  * @note 8 bytes
  */
 #[repr(C)]
+#[derive(Debug)]
 pub(crate) struct TimeStamp {
     /// time stamp of second
     sec: u32,
@@ -45,6 +45,7 @@ impl Display for TimeStamp {
  * @note 16 bytes
  */
 #[repr(C)]
+#[derive(Debug)]
 pub(crate) struct DataInfo {
     /// packet sequence id, consecutively increasing
     seq: u32,

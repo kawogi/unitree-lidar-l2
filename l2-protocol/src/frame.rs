@@ -4,7 +4,16 @@ use anyhow::{Context, Result, bail};
 use bytes::Buf;
 use crc_fast::CrcAlgorithm;
 
-use crate::{ToUsize, ack::{Ack, LidarAckData}, command::{Command, LidarCommand}, imu::LidarImuData, user_ctrl_cmd::{LidarUserCtrlCmd, UserCmd}, version::{LidarVersionData, Version}, work_mode::{LidarWorkModeConfig, WorkMode}};
+use crate::{
+    ToUsize,
+    ack::{Ack, LidarAckData},
+    command::{Command, LidarCommand},
+    imu::LidarImuData,
+    point_data::LidarPointData,
+    user_ctrl_cmd::{LidarUserCtrlCmd, UserCmd},
+    version::{LidarVersionData, Version},
+    work_mode::{LidarWorkModeConfig, WorkMode},
+};
 
 /// Frame Header
 #[repr(C)]
@@ -164,11 +173,10 @@ impl TryFrom<u32> for PacketType {
     }
 }
 
-
 pub enum Packet {
     LidarUserCmd(UserCmd),
     LidarAckData(Ack),
-    LidarPointData(Vec<u8>),
+    LidarPointData(Box<LidarPointData>),
     Lidar2DPointData(Vec<u8>),
     LidarImuData(LidarImuData),
     LidarVersion(Version),
@@ -221,30 +229,26 @@ impl Packet {
         let packet_type = PacketType::try_from(header.packet_type)?;
         let packet = match packet_type {
             PacketType::LidarUserCmd => {
-                // "USER_CMD"
                 let (cmd, _) = LidarUserCtrlCmd::parse(payload_bytes)?;
                 Self::LidarUserCmd(cmd.try_into()?)
             }
             PacketType::LidarAckData => {
-                // "ACK_DATA"
                 let (data, _) = LidarAckData::parse(payload_bytes)?;
                 Self::LidarAckData(data.try_into()?)
             }
             PacketType::LidarPointData => {
-                // "POINT_DATA"
-                Self::LidarPointData(payload_bytes.to_vec())
+                let (data, _) = LidarPointData::parse(payload_bytes)?;
+                Self::LidarPointData(Box::new(data))
             }
             PacketType::Lidar2DPointData => {
                 // TODO never seen in the wild so far
                 Self::Lidar2DPointData(payload_bytes.to_vec())
             }
             PacketType::LidarImuData => {
-                // "IMU_DATA"
                 let (data, _) = LidarImuData::parse(payload_bytes)?;
                 Self::LidarImuData(data)
             }
             PacketType::LidarVersion => {
-                // "VERSION"
                 let (data, _) = LidarVersionData::parse(payload_bytes)?;
                 Self::LidarVersion(data.try_into()?)
             }
@@ -266,19 +270,14 @@ impl Packet {
                 Self::LidarMacAddressConfig(payload_bytes.to_vec())
             }
             PacketType::LidarCommand => {
-                // "COMMAND"
                 let (command, _) = LidarCommand::parse(payload_bytes)?;
                 Self::LidarCommand(command.try_into()?)
             }
-            PacketType::LidarParamData => {
-                // "PARAM_DATA"
-                Self::LidarParamData(payload_bytes.to_vec())
-            }
+            PacketType::LidarParamData => Self::LidarParamData(payload_bytes.to_vec()),
             PacketType::LidarWorkMode => {
-                // "WORK_MODE"
                 let (config, _) = LidarWorkModeConfig::parse(payload_bytes)?;
                 Self::LidarWorkMode(config.try_into()?)
-            } // unknown => bail!("Unknown packet type: {unknown}"),
+            }
         };
 
         Ok((packet, remainder))
@@ -290,7 +289,7 @@ impl Display for Packet {
         match self {
             Packet::LidarUserCmd(cmd) => write!(f, "UserCmd({cmd})"),
             Packet::LidarAckData(ack) => write!(f, "AckData({ack})"),
-            Packet::LidarPointData(raw) => write!(f, "PointData({})", raw.len()),
+            Packet::LidarPointData(data) => write!(f, "PointData({data})"),
             Packet::Lidar2DPointData(raw) => write!(f, "2DPointData({})", raw.len()),
             Packet::LidarImuData(data) => write!(f, "ImuData({data})"),
             Packet::LidarVersion(version) => write!(f, "Version({version})"),
